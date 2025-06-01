@@ -4,49 +4,51 @@ project(KafkaProjectCPP)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find Boost with both system and program_options components
+# ------------------- Boost -------------------
 find_package(Boost REQUIRED COMPONENTS system program_options)
 
-# Find cppkafka
+# ------------------- cppkafka -------------------
 find_path(CPPKAFKA_INCLUDE_DIR cppkafka/cppkafka.h)
 find_library(CPPKAFKA_LIBRARY cppkafka)
 
-# Find librdkafka
+# ------------------- librdkafka -------------------
 find_path(RDKAFKA_INCLUDE_DIR librdkafka/rdkafka.h)
 find_library(RDKAFKA_LIBRARY rdkafka)
 
-# OpenSSL
+# ------------------- OpenSSL -------------------
 find_package(OpenSSL REQUIRED)
 
+# ------------------- Apache Arrow -------------------
+find_package(Parquet REQUIRED)
+find_package(Arrow REQUIRED)
+
+# ------------------- Include directories -------------------
 include_directories(
     ${Boost_INCLUDE_DIRS}
     ${CPPKAFKA_INCLUDE_DIR}
     ${RDKAFKA_INCLUDE_DIR}
-    src
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/lib
 )
 
-# Add producer executable
-add_executable(producer src/producer.cpp)
-
-# Add consumer executable
-add_executable(consumer src/consumer.cpp)
-
-# Link libraries for producer
-target_link_libraries(producer
-    ${CPPKAFKA_LIBRARY}
-    ${RDKAFKA_LIBRARY}
-    ${Boost_SYSTEM_LIBRARY}
-    ${Boost_PROGRAM_OPTIONS_LIBRARY}  # Add this
-    OpenSSL::SSL
-    OpenSSL::Crypto
+# ------------------- Link directories -------------------
+link_directories(
+    ${CMAKE_SOURCE_DIR}/lib
 )
 
-# Link libraries for consumer
-target_link_libraries(consumer
+file(GLOB_RECURSE SOURCES "src/*.cpp" "lib/**/*.cpp")
+
+# ------------------- Add executable -------------------
+add_executable(main ${SOURCES})
+
+
+# ------------------- Link libraries -------------------
+target_link_libraries(main
+    ${Boost_LIBRARIES}
     ${CPPKAFKA_LIBRARY}
     ${RDKAFKA_LIBRARY}
-    ${Boost_SYSTEM_LIBRARY}
-    ${Boost_PROGRAM_OPTIONS_LIBRARY}  # Add this
     OpenSSL::SSL
     OpenSSL::Crypto
+    Arrow::arrow_shared
+    Parquet::parquet_shared
 )
