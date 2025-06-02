@@ -11,7 +11,8 @@
 #include <memory>
 #include <vector>
 #include <map>
-
+#include "json.hpp"
+using json = nlohmann::json;
 
 // arrow::Status getTableFromFile(const std::string& filename, std::shared_ptr<arrow::Table>& existing_table);
 // arrow::Status AppendUserParquetRow(std::string& filename, 
@@ -30,8 +31,10 @@ arrow::Status updateUserInfo(const std::string& filename,
                             const std::map<std::string, 
                             std::string>& updated_values,
                             bool allow_point_update = false);
-// arrow::Status registerUser(User *& user);
+arrow::Status registerUser(User *& user);
 std::string trim(const std::string& str);
+json getUserInfoTable();
+arrow::Status searchUser(std::string userName, User *& currentUser);
 // arrow::Status transferPoint(const std::string& filename, User *& currentUser);
 // void logTransaction(const std::string& senderWalletId,
 //                     const std::string& senderuserName,

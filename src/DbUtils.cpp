@@ -23,8 +23,9 @@
 #include <filesystem>
 #include <chrono>
 #include <arrow/api.h>
+#include "json.hpp"
 // #include <transaction_utils.h>
-
+using json = nlohmann::json;
 arrow::Status getTableFromFile(const std::string& filename, std::shared_ptr<arrow::Table>& existing_table) {
     // Mở file parquet
     std::shared_ptr<arrow::io::ReadableFile> infile;
@@ -295,10 +296,10 @@ arrow::Status AppendBatchUserParquetRows(std::string& filename,
 //     return true;
 // }
 
-// std::string TruncateString(const std::string& s, size_t max_len = 15) {
-//     if (s.length() <= max_len) return s;
-//     return s.substr(0, max_len) + "...";
-// }
+std::string TruncateString(const std::string& s, size_t max_len = 15) {
+    if (s.length() <= max_len) return s;
+    return s.substr(0, max_len) + "...";
+}
 
 std::string trim(const std::string& str) {
     size_t first = str.find_first_not_of(" \t\n\r");
@@ -307,46 +308,74 @@ std::string trim(const std::string& str) {
     return str.substr(first, last - first + 1);
 }
 
-// void PrintTableLikeCLI(const std::shared_ptr<arrow::Table>& table, std::vector<int> columns_orders) {
-//     const int col_width = 15;
+void PrintTableLikeCLI(const std::shared_ptr<arrow::Table>& table, std::vector<int> columns_orders) {
+    const int col_width = 15;
 
-//     // Print headers
-//     for (const int& i : columns_orders) {
-//         std::string header = table->schema()->field(i)->name();
-//         std::cout << std::setw(col_width) << TruncateString(header) << " | ";
-//     }
-//     std::cout << "\n";
+    // Print headers
+    for (const int& i : columns_orders) {
+        std::string header = table->schema()->field(i)->name();
+        std::cout << std::setw(col_width) << TruncateString(header) << " | ";
+    }
+    std::cout << "\n";
 
-//     // Print separator
-//     for (const int& col : columns_orders) {
-//         std::cout << std::string(col_width, '-') << " | ";
-//     }
-//     std::cout << "\n";
+    // Print separator
+    for (const int& col : columns_orders) {
+        std::cout << std::string(col_width, '-') << " | ";
+    }
+    std::cout << "\n";
 
-//     // Print rows
-//     int64_t num_rows = table->num_rows();
-//     for (int64_t row = 0; row < num_rows; ++row) {
-//         for (const int& col : columns_orders) {
-//             const auto& chunked_array = table->column(col);
-//             int64_t offset = 0;
-//             for (const auto& chunk : chunked_array->chunks()) {
-//                 if (row < offset + chunk->length()) {
-//                     auto scalar_result = chunk->GetScalar(row - offset);
-//                     if (scalar_result.ok()) {
-//                         std::string cell = scalar_result.ValueOrDie()->ToString();
-//                         std::cout << std::setw(col_width) << TruncateString(cell) << " | ";
-//                     } else {
-//                         std::cout << std::setw(col_width) << "ERR" << " | ";
-//                     }
-//                     break;
-//                 }
-//                 offset += chunk->length();
-//             }
-//         }
-//         std::cout << "\n";
-//     }
-// }
+    // Print rows
+    int64_t num_rows = table->num_rows();
+    for (int64_t row = 0; row < num_rows; ++row) {
+        for (const int& col : columns_orders) {
+            const auto& chunked_array = table->column(col);
+            int64_t offset = 0;
+            for (const auto& chunk : chunked_array->chunks()) {
+                if (row < offset + chunk->length()) {
+                    auto scalar_result = chunk->GetScalar(row - offset);
+                    if (scalar_result.ok()) {
+                        std::string cell = scalar_result.ValueOrDie()->ToString();
+                        std::cout << std::setw(col_width) << TruncateString(cell) << " | ";
+                    } else {
+                        std::cout << std::setw(col_width) << "ERR" << " | ";
+                    }
+                    break;
+                }
+                offset += chunk->length();
+            }
+        }
+        std::cout << "\n";
+    }
+}
+json arrowTableToJson(std::shared_ptr<arrow::Table> table) {
+    json result = json::array();
 
+    std::shared_ptr<arrow::Schema> schema = table->schema();
+    int num_rows = table->num_rows();
+    int num_cols = table->num_columns();
+
+    for (int64_t i = 0; i < num_rows; ++i) {
+        json row;
+        for (int j = 0; j < num_cols; ++j) {
+            std::shared_ptr<arrow::ChunkedArray> col = table->column(j);
+            auto scalar_result = col->chunk(0)->GetScalar(i);
+            if (scalar_result.ok()) {
+                auto scalar = scalar_result.ValueOrDie();
+                row[schema->field(j)->name()] = scalar->ToString();
+            }
+        }
+        result.push_back(row);
+    }
+    return result;
+}
+
+json getUserInfoTable() {
+    std::string filename = "../assets/users.parquet";
+    std::shared_ptr<arrow::Table> table;
+    getTableFromFile(filename, table);
+    json json_table = arrowTableToJson(table);
+    return json_table;
+}
 // arrow::Status printUserInfoFromDb() {
 //     std::string filename = "../assets/users.parquet";
 //     std::shared_ptr<arrow::Table> table;
@@ -393,6 +422,8 @@ bool isUserExist(std::string userName) {
     }
     return false; // User does not exist
 }
+
+
 
 User * loginUser(std::shared_ptr<arrow::io::ReadableFile> infile, std::string userName, std::string userpassword){
     //system("clear");
@@ -490,6 +521,7 @@ User * loginUser(std::shared_ptr<arrow::io::ReadableFile> infile, std::string us
     }
 }
 
+
 //Hàm sinh mã OTP
 // std::string generateOTP(const std::string& WalletId = "default") {
 //     // Sử dụng WalletId để tạo mã OTP duy nhất
@@ -524,32 +556,32 @@ User * loginUser(std::shared_ptr<arrow::io::ReadableFile> infile, std::string us
 //     return sha256(txId);
 // }
 
-// arrow::Status registerUser(User *& user) {
-//     std::string filename = "../assets/users.parquet";
-//     // Auto set user point = 0 if register
-//     //user->setPoint(0);
-//     std::string fullName = user->fullName();
-//     std::string accountName = user->accountName();
-//     std::string password = user->password();
-//     std::string salt = user->salt();
-//     int point = user->point();
-//     std::string wallet = user->wallet();
+arrow::Status registerUser(User *& user) {
+    std::string filename = "../assets/users.parquet";
+    // Auto set user point = 0 if register
+    //user->setPoint(0);
+    std::string fullName = user->fullName();
+    std::string accountName = user->accountName();
+    std::string password = user->password();
+    std::string salt = user->salt();
+    int point = user->point();
+    std::string wallet = user->wallet();
 
-//     arrow::Status resultRegisterUser = AppendUserParquetRow(filename,
-//                                                             fullName,
-//                                                             accountName,
-//                                                             password,
-//                                                             salt,
-//                                                             point,
-//                                                             wallet);
+    arrow::Status resultRegisterUser = AppendUserParquetRow(filename,
+                                                            fullName,
+                                                            accountName,
+                                                            password,
+                                                            salt,
+                                                            point,
+                                                            wallet);
     
-//     if (!resultRegisterUser.ok()) {
-//         std::cerr << "Error registering user: " << resultRegisterUser.ToString() << std::endl;
-//         return resultRegisterUser;
-//     } 
-//     std::cout << "User registered successfully!" << std::endl;
-//     return arrow::Status::OK();
-// }
+    if (!resultRegisterUser.ok()) {
+        std::cerr << "Error registering user: " << resultRegisterUser.ToString() << std::endl;
+        return resultRegisterUser;
+    } 
+    std::cout << "User registered successfully!" << std::endl;
+    return arrow::Status::OK();
+}
 
 arrow::Status findUserrow(const std::shared_ptr<arrow::Table>& table, 
                           const std::string& userName,
@@ -610,6 +642,7 @@ arrow::Status updateUserInfo(const std::string& filename,
                 std::string>& updated_values,
                 bool allow_point_update) {
     //Kiểm tra đầu vào
+    std::cout << "check update" << std::endl;
     if(filename.empty()) {
         std::cerr << "Filename is empty" << std::endl;
         return arrow::Status::Invalid("Filename is empty");
@@ -746,6 +779,40 @@ arrow::Status updateUserInfo(const std::string& filename,
         return arrow::Status::OK();
 }
 
+arrow::Status searchUser(std::string userName, User *& currentUser) {
+    std::string filename = "../assets/users.parquet";
+    std::shared_ptr<arrow::io::ReadableFile> infile;
+    try {
+        PARQUET_ASSIGN_OR_THROW(infile, arrow::io::ReadableFile::Open(filename));
+    } catch (const arrow::Status& status) {
+        std::cerr << "Error opening file: " << status.ToString() << std::endl;
+        std::cout << "Returning to Menu..." << std::endl;
+        std::cin.get(); // Wait for user input before continuing
+        return arrow::Status::OK();    
+    }
+
+    parquet::StreamReader stream{parquet::ParquetFileReader::Open(infile)};
+    //parquet::StreamReader stream(reader.get());
+
+    std::string dbFullName;
+    std::string dbUserName;
+    std::string dbSalt;
+    std::string dbWalletId;
+    std::string dbhasdedPassword;
+    int64_t dbUserPoint;
+    bool userfound = false;
+
+    while (!stream.eof() ){
+        stream >> dbFullName >> dbUserName >> dbhasdedPassword >> dbSalt >> dbUserPoint >> dbWalletId >> parquet::EndRow;
+        //std::cout << dbUserName << std::endl;
+        if (userName == dbUserName) {
+            userfound = true; 
+            currentUser = new User(dbFullName, dbUserName, dbhasdedPassword, dbUserPoint, dbSalt, dbWalletId);
+            return arrow::Status::OK();
+        }
+    }
+    return arrow::Status::OK();
+}
 // //Hàm ghi log giao dịch
 // void logTransaction(const std::string& senderWalletId,
 //                     const std::string& senderuserName,

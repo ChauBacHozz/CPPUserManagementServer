@@ -3,7 +3,8 @@
 #include <librdkafka/rdkafka.h>
 #include <thread>
 #include "Client.h"
-
+#include "json.hpp"
+using json = nlohmann::json;
 class User : public Client
 {
 private:
@@ -31,7 +32,7 @@ public:
     ~User();
 
     void initKafkaClient();
-    void activateConsumerThread();
+    // void activateConsumerThread();
     bool check_consumer_thread_running();
     
 
@@ -59,5 +60,6 @@ public:
     void sendMessageToKafka(std::string message, std::string topic);
     void receiveMessageFromKafka(std::string topic);
 
+    json convertUserInfo2Json();
 };
 
