@@ -873,86 +873,86 @@ arrow::Status searchUser(std::string userName, User *& currentUser) {
 //         }
 // }
 
-// bool walletIdExists = false;
-// //Hàm kiểm tra WalletId và FFullName
-// bool checkWalletIdAndFullName(const std::string& filename,
-//                               const std::string& walletId, 
-//                               const std::string& fullName,
-//                               int64_t& receiverPoints,
-//                               int& receiverRow,
-//                               std::string& receiverUserName,
-//                               std::string& errorMessage) {
-//     std::cout << "Checking WalletId: " << walletId << ", Fullname" << fullName << std::endl;
-//     // Đọc file parquet
-//     std::shared_ptr<arrow::Table> table;
-//     arrow::Status status = getTableFromFile(filename, table);
-//     if(!status.ok()) {
-//         errorMessage = "Error reading file: " + status.ToString();
-//         std::cerr << errorMessage << std::endl;
-//         return false;
-//     }
 
-//     if(!table || table->num_rows() == 0) {
-//         errorMessage = "Table is empty or not found!";
-//         std::cerr << errorMessage << std::endl;
-//         return false;
-//     }
+//Hàm kiểm tra WalletId và FFullName
+json checkWalletIdAndFullName(const std::string& walletId, 
+                              const std::string& fullName,
+                              std::string& errorMessage) {
+    std::cout << "Checking WalletId: " << walletId << ", Fullname" << fullName << std::endl;
+    // Đọc file parquet
+    std::string filename = "../assets/users.parquet";
+    json result;
+    result["status"] = false;
+    std::shared_ptr<arrow::Table> table;
+    arrow::Status status = getTableFromFile(filename, table);
+    if(!status.ok()) {
+        errorMessage = "Error reading file: " + status.ToString();
+        std::cerr << errorMessage << std::endl;
+        return false;
+    }
 
-//     auto walletIdColumn = table->GetColumnByName("IDWallet");
-//     auto fullNameColumn = table->GetColumnByName("Fullname");
-//     auto userNameColumn = table->GetColumnByName("UserName");
-//     auto pointColumn = table->GetColumnByName("Points");
-//     if(!walletIdColumn || !fullNameColumn || !userNameColumn || !pointColumn) {
-//         errorMessage = "Required columns (IDWallet, Fullname, UserName, Point) not found!";
-//         std::cerr << errorMessage << std::endl;
-//         return false;
-//     }
+    if(!table || table->num_rows() == 0) {
+        errorMessage = "Table is empty or not found!";
+        std::cerr << errorMessage << std::endl;
+        return false;
+    }
 
-//     // Kiểm tra kiểu dữ liệu của các cột
-//     if(walletIdColumn->type()->id() != arrow::Type::STRING ||
-//        fullNameColumn->type()->id() != arrow::Type::STRING ||
-//        userNameColumn->type()->id() != arrow::Type::STRING ||
-//        pointColumn->type()->id() != arrow::Type::INT64) {
-//         errorMessage = "Columns have types mismatch (expected STRING for WalletId and Fullname, INT64 for Point)!";
-//         std::cerr << errorMessage << std::endl;
-//         return false;
-//     }
+    auto walletIdColumn = table->GetColumnByName("IDWallet");
+    auto fullNameColumn = table->GetColumnByName("Fullname");
+    auto userNameColumn = table->GetColumnByName("UserName");
+    auto pointColumn = table->GetColumnByName("Points");
+    if(!walletIdColumn || !fullNameColumn || !userNameColumn || !pointColumn) {
+        errorMessage = "Required columns (IDWallet, Fullname, UserName, Point) not found!";
+        std::cerr << errorMessage << std::endl;
+        return false;
+    }
 
-//     // Kiểm tra WalletId và FullName
-//     int64_t globalRowCount = 0;    
-//     bool walletIdFound = false;
-//     for (int chunkIdx = 0; chunkIdx < walletIdColumn->num_chunks(); ++chunkIdx) {
-//         auto walletIdArray = std::static_pointer_cast<arrow::StringArray>(walletIdColumn->chunk(chunkIdx));
-//         auto fullNameArray = std::static_pointer_cast<arrow::StringArray>(fullNameColumn->chunk(chunkIdx));
-//         auto userNameArray = std::static_pointer_cast<arrow::StringArray>(userNameColumn->chunk(chunkIdx));
-//         auto pointArray = std::static_pointer_cast<arrow::Int64Array>(pointColumn->chunk(chunkIdx));
+    // Kiểm tra kiểu dữ liệu của các cột
+    if(walletIdColumn->type()->id() != arrow::Type::STRING ||
+       fullNameColumn->type()->id() != arrow::Type::STRING ||
+       userNameColumn->type()->id() != arrow::Type::STRING ||
+       pointColumn->type()->id() != arrow::Type::INT64) {
+        errorMessage = "Columns have types mismatch (expected STRING for WalletId and Fullname, INT64 for Point)!";
+        std::cerr << errorMessage << std::endl;
+        return false;
+    }
 
-//         std::cout << "Processing chunk " << chunkIdx << " with " << walletIdArray->length() << " row" << std::endl;
+    // Kiểm tra WalletId và FullName
+    int64_t globalRowCount = 0;    
+    bool walletIdFound = false;
+    for (int chunkIdx = 0; chunkIdx < walletIdColumn->num_chunks(); ++chunkIdx) {
+        auto walletIdArray = std::static_pointer_cast<arrow::StringArray>(walletIdColumn->chunk(chunkIdx));
+        auto fullNameArray = std::static_pointer_cast<arrow::StringArray>(fullNameColumn->chunk(chunkIdx));
+        auto userNameArray = std::static_pointer_cast<arrow::StringArray>(userNameColumn->chunk(chunkIdx));
+        auto pointArray = std::static_pointer_cast<arrow::Int64Array>(pointColumn->chunk(chunkIdx));
 
-//         for (int64_t i = 0; i < walletIdArray->length(); ++i, ++globalRowCount) {
-//             if (walletIdArray->IsNull(i) || fullNameArray->IsNull(i)) {
-//                 continue; // Bỏ qua các giá trị null
-//             }
-//             if (walletIdArray->GetString(i) == walletId && fullNameArray->GetString(i) == fullName) {
-//                 if (pointArray->IsNull(i) || userNameArray->IsNull(i)) {
-//                     errorMessage = "Point or UserName is null for the given WalletId and FullName!";
-//                     std::cerr << errorMessage << std::endl;
-//                     return false;
-//                 }
-//                 receiverRow = globalRowCount;
-//                 receiverPoints = pointArray->Value(i);
-//                 receiverUserName = userNameArray->GetString(i);
-//                 walletIdExists = true;
-//                 std:: cout << "Found receiver at global row: " << receiverRow << ", UserName: " << receiverUserName << std::endl;
-//                 return true; // Tìm thấy WalletId và FullName
-//             }
-//         }
-//     }
+        std::cout << "Processing chunk " << chunkIdx << " with " << walletIdArray->length() << " row" << std::endl;
 
-//     errorMessage = "WalletId or FullName not found!";
-//     std::cerr << errorMessage << std::endl;
-//     return false; // Không tìm thấy WalletId và FullName
-// }
+        for (int64_t i = 0; i < walletIdArray->length(); ++i, ++globalRowCount) {
+            if (walletIdArray->IsNull(i) || fullNameArray->IsNull(i)) {
+                continue; // Bỏ qua các giá trị null
+            }
+            if (walletIdArray->GetString(i) == walletId && fullNameArray->GetString(i) == fullName) {
+                if (pointArray->IsNull(i) || userNameArray->IsNull(i)) {
+                    errorMessage = "Point or UserName is null for the given WalletId and FullName!";
+                    std::cerr << errorMessage << std::endl;
+                    return false;
+                }
+                result["status"] = true;
+                result["receiver_row"] = globalRowCount;
+                result["receiver_points"] = pointArray->Value(i);
+                result["receiver_username"] = userNameArray->GetString(i);
+                // walletIdExists = true;
+                std:: cout << "Found receiver at global row: " << globalRowCount << ", UserName: " << userNameArray->GetString(i) << std::endl;
+                return result; // Tìm thấy WalletId và FullName
+            }
+        }
+    }
+
+    errorMessage = "WalletId or FullName not found!";
+    std::cerr << errorMessage << std::endl;
+    return false; // Không tìm thấy WalletId và FullName
+}
 
 // // Hàm chuyển điểm
 // arrow::Status transferPoint(const std::string& filename, User *& currentUser) {

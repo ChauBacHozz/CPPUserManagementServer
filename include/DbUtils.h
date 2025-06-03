@@ -45,6 +45,8 @@ arrow::Status searchUser(std::string userName, User *& currentUser);
 //                     int64_t transferPoint,
 //                     bool isSuccess,
 //                     const std::string& errorMessage = "");
-
+json checkWalletIdAndFullName(const std::string& walletId, 
+    const std::string& fullName,
+    std::string& errorMessage);
 
 #endif

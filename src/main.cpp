@@ -90,6 +90,31 @@ int main() {
                 }
                 res.set_content(search_result.dump(), "application/json");
 
+            } else if (purpose == "USERWALLETSEARCH") {
+                std::string receiver_wallet_id = data["receiver_wallet_id"];
+                std::string receiver_fullname = data["receiver_fullname"];
+                std::string error_msg;
+                json search_result = checkWalletIdAndFullName(receiver_wallet_id, receiver_fullname, error_msg);
+                res.status = 401;
+                res.set_content(search_result.dump(), "application/json");
+
+            } else if (purpose == "UPDATESENDERWALLET") {
+                int point = data["point"].get<int>();
+                User * user = new User(data["userinfo"]["fullname"].get<std::string>(),
+                                        data["userinfo"]["username"].get<std::string>(),
+                                        data["userinfo"]["password"].get<std::string>(),
+                                        data["userinfo"]["point"].get<int>(),
+                                        data["userinfo"]["salt"].get<std::string>(),
+                                        data["userinfo"]["wallet"].get<std::string>());
+                std::map<std::string, std::string> senderUpdatedValues = {
+                    {"Points", std::to_string(data["userinfo"]["point"].get<int>() - point)}
+                };
+                std::string filename = "../assets/users.parquet";
+                json result;
+                updateUserInfo(filename, user, senderUpdatedValues, true);
+                result["status"] = true;
+                res.status = 401;
+                res.set_content(result.dump(), "application/json");
             }
 
             // std::string username = data["username"];
