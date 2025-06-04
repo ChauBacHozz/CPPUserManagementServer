@@ -99,19 +99,40 @@ int main() {
                 res.set_content(search_result.dump(), "application/json");
 
             } else if (purpose == "UPDATESENDERWALLET") {
+                std::cout << data << std::endl;
                 int point = data["point"].get<int>();
-                User * user = new User(data["userinfo"]["fullname"].get<std::string>(),
-                                        data["userinfo"]["username"].get<std::string>(),
-                                        data["userinfo"]["password"].get<std::string>(),
-                                        data["userinfo"]["point"].get<int>(),
-                                        data["userinfo"]["salt"].get<std::string>(),
-                                        data["userinfo"]["wallet"].get<std::string>());
+                std::cout << "check" << std::endl;
+                User * user = new User(data["user"]["fullname"].get<std::string>(),
+                                        data["user"]["username"].get<std::string>(),
+                                        data["user"]["password"].get<std::string>(),
+                                        data["user"]["point"].get<int>(),
+                                        data["user"]["salt"].get<std::string>(),
+                                        data["user"]["wallet"].get<std::string>());
                 std::map<std::string, std::string> senderUpdatedValues = {
-                    {"Points", std::to_string(data["userinfo"]["point"].get<int>() - point)}
+                    {"Points", std::to_string(data["user"]["point"].get<int>() - point)}
                 };
                 std::string filename = "../assets/users.parquet";
                 json result;
-                updateUserInfo(filename, user, senderUpdatedValues, true);
+                arrow::Status update_result = updateUserInfo(filename, user, senderUpdatedValues, true);
+                result["status"] = true;
+                res.status = 401;
+                res.set_content(result.dump(), "application/json");
+            } else if (purpose == "UPDATERECEIVERWALLET") {
+                std::cout << data << std::endl;
+                int point = data["point"].get<int>();
+                std::cout << "check" << std::endl;
+                User * user = new User(data["user"]["fullname"].get<std::string>(),
+                                        data["user"]["username"].get<std::string>(),
+                                        data["user"]["password"].get<std::string>(),
+                                        data["user"]["point"].get<int>(),
+                                        data["user"]["salt"].get<std::string>(),
+                                        data["user"]["wallet"].get<std::string>());
+                std::map<std::string, std::string> senderUpdatedValues = {
+                    {"Points", std::to_string(data["user"]["point"].get<int>() + point)}
+                };
+                std::string filename = "../assets/users.parquet";
+                json result;
+                arrow::Status update_result = updateUserInfo(filename, user, senderUpdatedValues, true);
                 result["status"] = true;
                 res.status = 401;
                 res.set_content(result.dump(), "application/json");
